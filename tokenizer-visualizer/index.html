@@ -2,39 +2,58 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Tokenizer Visualizer</title>
+  <title>Tokens Visualizer</title>
   <style>
     .token { display: inline-block; margin: 2px; padding: 2px 6px; border-radius: 4px; background: #e0e0e0; }
     .punct { background: #ffd54f; }
   </style>
 </head>
 <body>
-  <h2>Tokenizer Visualizer</h2>
+  <h2>Tokens Visualizer</h2>
   <textarea id="input" rows="4" cols="50" placeholder="Type your text here..."></textarea>
   <div id="tokens" style="margin-top: 16px;"></div>
   <h3>Vocabulary</h3>
   <div id="vocab" style="margin-top: 8px;"></div>
+  <h3>Random Vectors</h3>
+  <div id="vectors" style="margin-top: 8px; font-family: monospace;"></div>
   <script src="tokenizer.js"></script>
   <script src="vocab.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="train_model.js"></script>
+  <button id="trainBtn">Train Model</button>
+  <div id="trainStatus" style="margin-top:8px;"></div>
   <script>
     const input = document.getElementById('input');
     const tokensDiv = document.getElementById('tokens');
     const vocabDiv = document.getElementById('vocab');
+    const vectorsDiv = document.getElementById('vectors');
     function renderTokens() {
       const tokens = tokenize(input.value);
       tokensDiv.innerHTML = tokens.map(token => {
         const isPunct = /[^\w\s]/.test(token);
         return `<span class="token${isPunct ? ' punct' : ''}">${token}</span>`;
       }).join(' ');
-      // Build and show vocabulary
       const vocab = buildVocabulary(tokens);
       vocabDiv.innerHTML = vocab.length
         ? '<ul>' + vocab.map(([tok, count]) => `<li><b>${tok}</b>: ${count}</li>`).join('') + '</ul>'
         : '<i>No tokens</i>';
+      // Generate and show random vectors
+      const vectors = generateRandomVectors(vocab, 8);
+      vectorsDiv.innerHTML = vocab.length
+        ? '<ul>' + vocab.map(([tok]) => `<li><b>${tok}</b>: [${vectors[tok].join(', ')}]</li>`).join('') + '</ul>'
+        : '<i>No tokens</i>';
     }
     input.addEventListener('input', renderTokens);
-    // Initial render
     renderTokens();
+
+    // Train button logic
+    const trainBtn = document.getElementById('trainBtn');
+    const trainStatus = document.getElementById('trainStatus');
+    trainBtn.onclick = async () => {
+      trainStatus.textContent = 'Training...';
+      await trainModel();
+      trainStatus.textContent = 'Training complete!';
+    };
   </script>
 </body>
 </html>

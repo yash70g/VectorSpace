@@ -1,0 +1,12 @@
+[
+  { "text": "I love machine learning!", "label": "positive" },
+  { "text": "This is a terrible mistake.", "label": "negative" },
+  { "text": "The weather is nice today.", "label": "neutral" },
+  { "text": "I am so excited about this project!", "label": "positive" },
+  { "text": "I don't like waiting in long lines.", "label": "negative" },
+  { "text": "The book was okay, not great.", "label": "neutral" },
+  { "text": "What a fantastic achievement!", "label": "positive" },
+  { "text": "I'm disappointed with the results.", "label": "negative" },
+  { "text": "It was an average experience.", "label": "neutral" },
+  { "text": "Absolutely wonderful service!", "label": "positive" }
+]
