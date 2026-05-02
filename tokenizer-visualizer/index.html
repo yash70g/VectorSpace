@@ -12,18 +12,29 @@
   <h2>Tokenizer Visualizer</h2>
   <textarea id="input" rows="4" cols="50" placeholder="Type your text here..."></textarea>
   <div id="tokens" style="margin-top: 16px;"></div>
+  <h3>Vocabulary</h3>
+  <div id="vocab" style="margin-top: 8px;"></div>
   <script src="tokenizer.js"></script>
+  <script src="vocab.js"></script>
   <script>
     const input = document.getElementById('input');
     const tokensDiv = document.getElementById('tokens');
+    const vocabDiv = document.getElementById('vocab');
     function renderTokens() {
       const tokens = tokenize(input.value);
       tokensDiv.innerHTML = tokens.map(token => {
         const isPunct = /[^\w\s]/.test(token);
         return `<span class="token${isPunct ? ' punct' : ''}">${token}</span>`;
       }).join(' ');
+      // Build and show vocabulary
+      const vocab = buildVocabulary(tokens);
+      vocabDiv.innerHTML = vocab.length
+        ? '<ul>' + vocab.map(([tok, count]) => `<li><b>${tok}</b>: ${count}</li>`).join('') + '</ul>'
+        : '<i>No tokens</i>';
     }
     input.addEventListener('input', renderTokens);
+    // Initial render
+    renderTokens();
   </script>
 </body>
 </html>
