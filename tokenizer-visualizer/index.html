@@ -2,57 +2,129 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Tokens Visualizer</title>
+  <title>Abusive Language Detector</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
-    .token { display: inline-block; margin: 2px; padding: 2px 6px; border-radius: 4px; background: #e0e0e0; }
-    .punct { background: #ffd54f; }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    input { padding: 8px; font-size: 14px; }
+    button { padding: 8px 16px; font-size: 14px; cursor: pointer; }
+    #predictResult { font-weight: bold; margin-left: 12px; }
+    #embedding3d { width: 100%; height: 500px; }
   </style>
 </head>
 <body>
-  <h2>Tokens Visualizer</h2>
-  <textarea id="input" rows="4" cols="50" placeholder="Type your text here..."></textarea>
-  <div id="tokens" style="margin-top: 16px;"></div>
-  <h3>Vocabulary</h3>
-  <div id="vocab" style="margin-top: 8px;"></div>
-  <h3>Random Vectors</h3>
-  <div id="vectors" style="margin-top: 8px; font-family: monospace;"></div>
-  <script src="tokenizer.js"></script>
-  <script src="vocab.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="train_model.js"></script>
-  <button id="trainBtn">Train Model</button>
-  <div id="trainStatus" style="margin-top:8px;"></div>
+  <h2>Abusive Language Detector</h2>
+  <h3>Train Model</h3>
+  <button id="trainBtn" style="padding: 8px 16px; font-size: 14px;">Train Model</button>
+  <div id="trainStatus" style="margin-top: 8px; font-weight: bold;"></div>
+  
+  <h3>Predict Label</h3>
+  <input id="predictInput" type="text" style="width: 80%; padding: 8px; font-size: 14px;" placeholder="Enter text to predict...">
+  <button id="predictBtn" style="padding: 8px 16px; font-size: 14px;">Predict</button>
+  <span id="predictResult" style="margin-left: 12px; font-weight: bold;"></span>
+  
+  <h3>3D Embedding Visualization</h3>
+  <div id="embedding3d" style="width: 100%; height: 500px;"></div>
   <script>
-    const input = document.getElementById('input');
-    const tokensDiv = document.getElementById('tokens');
-    const vocabDiv = document.getElementById('vocab');
-    const vectorsDiv = document.getElementById('vectors');
-    function renderTokens() {
-      const tokens = tokenize(input.value);
-      tokensDiv.innerHTML = tokens.map(token => {
-        const isPunct = /[^\w\s]/.test(token);
-        return `<span class="token${isPunct ? ' punct' : ''}">${token}</span>`;
-      }).join(' ');
-      const vocab = buildVocabulary(tokens);
-      vocabDiv.innerHTML = vocab.length
-        ? '<ul>' + vocab.map(([tok, count]) => `<li><b>${tok}</b>: ${count}</li>`).join('') + '</ul>'
-        : '<i>No tokens</i>';
-      // Generate and show random vectors
-      const vectors = generateRandomVectors(vocab, 8);
-      vectorsDiv.innerHTML = vocab.length
-        ? '<ul>' + vocab.map(([tok]) => `<li><b>${tok}</b>: [${vectors[tok].join(', ')}]</li>`).join('') + '</ul>'
-        : '<i>No tokens</i>';
+    const API_URL = 'http://localhost:3000';
+    let currentGraphData = null;
+    
+    async function trainModel() {
+      const trainStatus = document.getElementById('trainStatus');
+      trainStatus.textContent = 'Training model...';
+      try {
+        const response = await fetch(`${API_URL}/api/train`, { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+          trainStatus.textContent = 'Model trained! Ready to predict.';
+          visualizeEmbeddings(data.vocabData);
+        } else {
+          trainStatus.textContent = 'Training failed.';
+        }
+      } catch (err) {
+        trainStatus.textContent = 'Error: Could not connect to server. Make sure server is running!';
+        console.error('Training error:', err);
+      }
     }
-    input.addEventListener('input', renderTokens);
-    renderTokens();
-
-    // Train button logic
+    
+    function visualizeEmbeddings(vocabData, predictionVector = null, predictionLabel = null) {
+      const x = [], y = [], z = [], labels = [], colors = [];
+      vocabData.forEach(({ token, vector }) => {
+        if (vector && vector.length >= 3) {
+          x.push(vector[0]);
+          y.push(vector[1]);
+          z.push(vector[2]);
+          labels.push(token);
+          colors.push('#2196f3');
+        }
+      });
+      
+      const traces = [{
+        x, y, z,
+        text: labels,
+        mode: 'markers+text',
+        type: 'scatter3d',
+        marker: { size: 6, color: colors },
+        textposition: 'top center',
+        name: 'Tokens'
+      }];
+      
+      if (predictionVector && predictionVector.length >= 3) {
+        traces.push({
+          x: [predictionVector[0]],
+          y: [predictionVector[1]],
+          z: [predictionVector[2]],
+          text: [predictionLabel || 'Prediction'],
+          mode: 'markers+text',
+          type: 'scatter3d',
+          marker: { size: 12, color: 'red', symbol: 'diamond' },
+          textposition: 'top center',
+          name: 'Your Input',
+          textfont: { size: 16, color: 'red' }
+        });
+      }
+      
+      const layout = {
+        margin: { l: 0, r: 0, b: 0, t: 0 },
+        scene: { xaxis: { title: 'X' }, yaxis: { title: 'Y' }, zaxis: { title: 'Z' } },
+      };
+      Plotly.newPlot('embedding3d', traces, layout, {displayModeBar: false});
+      currentGraphData = vocabData;
+    }
+    
     const trainBtn = document.getElementById('trainBtn');
-    const trainStatus = document.getElementById('trainStatus');
-    trainBtn.onclick = async () => {
-      trainStatus.textContent = 'Training...';
-      await trainModel();
-      trainStatus.textContent = 'Training complete!';
+    trainBtn.onclick = trainModel;
+    
+    const predictInput = document.getElementById('predictInput');
+    const predictBtn = document.getElementById('predictBtn');
+    const predictResult = document.getElementById('predictResult');
+    
+    predictBtn.onclick = async () => {
+      const text = predictInput.value.trim();
+      if (!text) {
+        predictResult.textContent = '';
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_URL}/api/predict`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await response.json();
+        if (data.prediction) {
+          predictResult.textContent = `Predicted: ${data.prediction}`;
+          if (currentGraphData && data.vector) {
+            visualizeEmbeddings(currentGraphData, data.vector, `"${text}" → ${data.prediction}`);
+          }
+        } else {
+          predictResult.textContent = 'Error: ' + (data.error || 'Unknown error');
+        }
+      } catch (err) {
+        predictResult.textContent = 'Error: Could not connect to server.';
+        console.error('Prediction error:', err);
+      }
     };
   </script>
 </body>

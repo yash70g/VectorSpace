@@ -15,14 +15,17 @@ function textToVector(text, vocabVectors, tokenizer) {
   return avg.map(v => v / vectors.length);
 }
 
-async function trainModel() {
-  const dataset = await loadDataset();
+async function trainModel(customDataset) {
+  let dataset;
+  if (customDataset) {
+    dataset = customDataset;
+  } else {
+    dataset = await loadDataset();
+  }
   // tokenizer and vocab from the browser
   const tokenizer = window.tokenize;
   const vocab = window.buildVocabulary(dataset.map(d => tokenizer(d.text)).flat());
   const vocabVectors = window.generateRandomVectors(vocab, 8);
-
-  // Prepare data
   const texts = dataset.map(d => d.text);
   const labels = dataset.map(d => d.label);
   const labelSet = Array.from(new Set(labels));
@@ -30,23 +33,20 @@ async function trainModel() {
 
   const xs = texts.map(text => textToVector(text, vocabVectors, tokenizer));
   const ys = labels.map(label => labelToIndex[label]);
-
-  // Convert to tensors
   const tf_xs = tf.tensor2d(xs);
   const tf_ys = tf.oneHot(tf.tensor1d(ys, 'int32'), labelSet.length);
 
-  // Build model
+  // build 
   const model = tf.sequential();
   model.add(tf.layers.dense({ units: 16, activation: 'relu', inputShape: [8] }));
   model.add(tf.layers.dense({ units: labelSet.length, activation: 'softmax' }));
   model.compile({ optimizer: 'adam', loss: 'categoricalCrossentropy', metrics: ['accuracy'] });
-
-  // Train
-  await model.fit(tf_xs, tf_ys, { epochs: 50, batchSize: 2 });
+  await model.fit(tf_xs, tf_ys, { epochs: 10, batchSize: 4 });
   alert('Training complete!');
   return model;
 }
 
 if (typeof window !== 'undefined') {
   window.trainModel = trainModel;
+  window.textToVector = textToVector;
 }
