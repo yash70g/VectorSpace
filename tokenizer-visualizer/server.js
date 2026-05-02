@@ -75,14 +75,37 @@ function generateRandomVectors(vocab, dim = 8) {
   return vectors;
 }
 
-function textToVector(text, vocabVectors, tokenizer) {
+function getPositionalEncoding(position, dimension) {
+  const pe = Array(dimension).fill(0);
+  const div_term = Array.from({ length: Math.floor(dimension / 2) }, (_, i) => 
+    Math.exp(-Math.log(10000) * (2 * i) / dimension)
+  );
+  
+  for (let i = 0; i < div_term.length; i++) {
+    pe[2 * i] = Math.sin(position * div_term[i]);
+    if (2 * i + 1 < dimension) {
+      pe[2 * i + 1] = Math.cos(position * div_term[i]);
+    }
+  }
+  return pe;
+}
+
+function textToVectorWithPositionalEncoding(text, vocabVectors, tokenizer) {
   const tokens = tokenizer(text);
-  const vectors = tokens.map(tok => vocabVectors[tok] || Array(8).fill(0));
+  const vectors = tokens.map((tok, pos) => {
+    const embedding = vocabVectors[tok] || Array(8).fill(0);
+    const posEncoding = getPositionalEncoding(pos, 8);
+    return embedding.map((val, i) => val + posEncoding[i] * 0.1);
+  });
   const avg = Array(vectors[0].length).fill(0);
   vectors.forEach(vec => {
     vec.forEach((v, i) => { avg[i] += v; });
   });
   return avg.map(v => v / (vectors.length || 1));
+}
+
+function textToVector(text, vocabVectors, tokenizer) {
+  return textToVectorWithPositionalEncoding(text, vocabVectors, tokenizer);
 }
 
 let trainedModel = null;
